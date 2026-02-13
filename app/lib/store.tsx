@@ -58,36 +58,61 @@ export function SecondBrainProvider({ children }: { children: React.ReactNode })
         }
     }, [loadingState]);
 
+    // Safety timeout
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!isLoaded) {
+                console.warn("Loading timed out, forcing render. Firebase executing might be blocked or slow.");
+                setIsLoaded(true);
+            }
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [isLoaded]);
+
     // Subscriptions
     useEffect(() => {
+        console.log("Initializing SecondBrain subscriptions...");
+
         const unsubProjects = onSnapshot(collection(db, 'projects'), (snap) => {
+            console.log("Projects loaded:", snap.docs.length);
             const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as Project));
-            // Client-side sort if needed, usually createdAt
             data.sort((a, b) => b.createdAt - a.createdAt);
             setProjects(data);
             setLoadingState(prev => ({ ...prev, projects: false }));
+        }, (error) => {
+            console.error("Error loading projects:", error);
+            // Optionally set loading to false to unblock app (or handle error UI)
+            // setLoadingState(prev => ({ ...prev, projects: false }));
         });
 
         const unsubTasks = onSnapshot(collection(db, 'tasks'), (snap) => {
+            console.log("Tasks loaded:", snap.docs.length);
             const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as Task));
-            // Keep default sort by createdAt for consistency, component will handle specific sorts
             data.sort((a, b) => b.createdAt - a.createdAt);
             setTasks(data);
             setLoadingState(prev => ({ ...prev, tasks: false }));
+        }, (error) => {
+            console.error("Error loading tasks:", error);
         });
 
         const unsubLogs = onSnapshot(collection(db, 'logs'), (snap) => {
+            console.log("Logs loaded:", snap.docs.length);
             const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as ProcessingLog));
             data.sort((a, b) => b.timestamp - a.timestamp);
             setLogs(data);
             setLoadingState(prev => ({ ...prev, logs: false }));
+        }, (error) => {
+            console.error("Error loading logs:", error);
         });
 
         const unsubActivities = onSnapshot(collection(db, 'activities'), (snap) => {
+            console.log("Activities loaded:", snap.docs.length);
             const data = snap.docs.map(d => ({ ...d.data(), id: d.id } as ActivityLog));
             data.sort((a, b) => b.timestamp - a.timestamp);
             setActivities(data);
             setLoadingState(prev => ({ ...prev, activities: false }));
+        }, (error) => {
+            console.error("Error loading activities:", error);
         });
 
         return () => {
